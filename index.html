@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#102343">
+<meta name="description" content="Calculadora de materiais para manutenção industrial Chimba Pintor">
+<link rel="manifest" href="manifest.json">
+<title>Chimba Pintor | Calculadora Industrial</title>
+<style>
+:root{--navy:#102343;--blue:#0866cf;--light:#f1f5fb;--ink:#182337;--muted:#667085;--border:#dce3ed}
+*{box-sizing:border-box}body{margin:0;background:var(--light);font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink)}
+header{background:linear-gradient(135deg,var(--navy),#075bb8);color:white;padding:18px 16px;text-align:center}
+header img{width:100px;height:100px;object-fit:contain;border-radius:14px;background:white}
+header h1{margin:8px 0 3px;font-size:24px}header p{margin:0;font-size:13px;color:#e4efff}
+main{max-width:720px;margin:16px auto;padding:0 12px 24px}.card{background:white;border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px #14274408}
+h2{font-size:18px;margin:0 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;font-size:13px;font-weight:600;color:#4c596d;margin:10px 0 5px}
+input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:white;color:var(--ink);font:inherit}
+button{width:100%;padding:13px;border:0;border-radius:10px;font:700 15px system-ui;cursor:pointer;margin-top:10px}
+.primary{background:var(--blue);color:white}.secondary{background:#eaf1fb;color:var(--navy)}.success{background:#16834a;color:white}
+#result{display:none}.metric{border:1px solid var(--border);border-radius:11px;padding:12px;margin:9px 0}.metric strong{display:block;font-size:22px;margin:3px 0}.muted{color:var(--muted);font-size:12px}
+#reportHead{display:none;text-align:center;border-bottom:2px solid var(--blue);padding-bottom:12px;margin-bottom:12px}
+footer{text-align:center;font-size:12px;color:var(--muted);padding:10px}
+@media(max-width:430px){.grid{grid-template-columns:1fr}}
+@media print{body{background:white}header,.input-card,footer,.pdfbtn,.resetbtn{display:none!important}main{margin:0;padding:0;max-width:none}.card{border:0;box-shadow:none;padding:0}#result{display:block!important}#reportHead{display:block!important}.metric{break-inside:avoid}}
+</style>
+</head>
+<body>
+<header>
+<img src="logo-chimba.jpg" alt="Logo Chimba Pintor">
+<h1>CHIMBA PINTOR</h1>
+<p>CALCULADORA DE MANUTENÇÃO INDUSTRIAL</p>
+</header>
+<main>
+<section class="card input-card">
+<h2>🧮 Calcular materiais</h2>
+<label for="service">Tipo de serviço</label>
+<select id="service">
+<option value="paint">Pintura</option><option value="putty">Massa corrida</option><option value="plaster">Reboco</option><option value="masonry">Levantamento de alvenaria</option><option value="tile">Assentamento de lajota</option>
+</select>
+<div class="grid">
+<div><label for="length">Comprimento (m)</label><input id="length" type="number" min="0" step=".01" value="3"></div>
+<div><label for="height">Altura / largura (m)</label><input id="height" type="number" min="0" step=".01" value="3"></div>
+</div>
+<div class="grid">
+<div><label for="discount">Desconto de portas/janelas (m²)</label><input id="discount" type="number" min="0" step=".01" value="0"></div>
+<div><label for="waste">Margem de perda (%)</label><input id="waste" type="number" min="0" max="100" value="10"></div>
+</div>
+<div id="specific"></div>
+<button class="primary" id="calculate">CALCULAR MATERIAIS</button>
+</section>
+<section class="card" id="result" aria-live="polite">
+<div id="reportHead"><img src="logo-chimba.jpg" alt="" style="width:75px;height:75px;object-fit:contain"><h2>CHIMBA PINTOR</h2><b>RELATÓRIO DE MATERIAIS — MANUTENÇÃO INDUSTRIAL</b><p id="date" class="muted"></p></div>
+<h2>📋 Resultado do levantamento</h2><div id="results"></div>
+<button class="success pdfbtn" id="pdf">GERAR / SALVAR RELATÓRIO PDF</button>
+<button class="secondary resetbtn" id="reset">NOVO CÁLCULO</button>
+</section>
+<footer>Estimativas de consumo. Confirme rendimentos e especificações técnicas dos fabricantes.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id), service=$('service'), specific=$('specific');
+const configs={
+paint:[['coats','Número de demãos','2'],['coverage','Rendimento da tinta (m²/L/demão)','10']],
+putty:[['coats','Número de demãos','2'],['consumption','Consumo (kg/m²/demão)','1'],['bucket','Peso do balde (kg)','25']],
+plaster:[['thickness','Espessura do reboco (cm)','2'],['ratio','Traço cimento (partes)','1'],['sandratio','Traço areia (partes)','4'],['bag','Saco de cimento (kg)','50']],
+masonry:[['blocklength','Comprimento do bloco (cm)','39'],['blockheight','Altura do bloco (cm)','19'],['joint','Junta (cm)','1'],['mortar','Argamassa por bloco (kg)','0.8']],
+tile:[['tilelength','Lajota comprimento (cm)','60'],['tilewidth','Lajota largura (cm)','60'],['mortar','Argamassa (kg/m²)','4'],['grout','Rejunte (kg/m²)','0.5'],['bag','Saco de argamassa (kg)','20']]
+};
+const val=id=>Number($(id)?.value||0), fmt=n=>n.toLocaleString('pt-BR',{maximumFractionDigits:2});
+function draw(){specific.innerHTML='';configs[service.value].forEach(([id,label,value])=>{let div=document.createElement('div');div.innerHTML=`<label for="${id}">${label}</label><input id="${id}" type="number" min="0" step=".01" value="${value}">`;specific.appendChild(div)})}
+function calculate(){
+let raw=val('length')*val('height')-val('discount');if(val('length')<=0||val('height')<=0||raw<=0){alert('Confira as medidas e os descontos. A área precisa ser maior que zero.');return}
+let area=Math.max(0,raw), a=area*(1+Math.max(0,val('waste'))/100),items=[];
+switch(service.value){
+case'paint':{let liters=a*val('coats')/Math.max(.01,val('coverage'));items=[['Tinta estimada',fmt(liters)+' litros','Área com margem de perda, demãos e rendimento'],['Compra arredondada',fmt(Math.ceil(liters))+' litros','Verifique tamanhos comerciais das embalagens']];break}
+case'putty':{let kg=a*val('coats')*val('consumption');items=[['Massa corrida',fmt(kg)+' kg','Consumo informado'],['Balde de '+fmt(val('bucket'))+' kg',fmt(Math.ceil(kg/Math.max(.01,val('bucket'))))+' baldes','Quantidade arredondada para compra']];break}
+case'plaster':{let volume=a*val('thickness')/100,r=val('ratio'),s=val('sandratio'),sum=r+s;let cement=volume*r/Math.max(.01,sum)*1440,sand=volume*s/Math.max(.01,sum);items=[['Volume aproximado',fmt(volume)+' m³','Área com perda × espessura'],['Cimento',fmt(Math.ceil(cement/Math.max(.01,val('bag'))))+' sacos de '+fmt(val('bag'))+' kg','Estimativa pelo traço volumétrico configurado'],['Areia',fmt(sand)+' m³','Volume aproximado']];break}
+case'masonry':{let blockArea=(val('blocklength')+val('joint'))/100*(val('blockheight')+val('joint'))/100,blocks=Math.ceil(a/Math.max(.0001,blockArea)),mortar=blocks*val('mortar');items=[['Blocos / tijolos',fmt(blocks)+' unidades','Considera dimensões e junta informadas'],['Argamassa de assentamento',fmt(mortar)+' kg','Consumo por bloco configurado']];break}
+case'tile':{let pieceArea=val('tilelength')/100*val('tilewidth')/100,pieces=Math.ceil(a/Math.max(.0001,pieceArea)),mortar=a*val('mortar'),grout=a*val('grout');items=[['Lajotas',fmt(pieces)+' peças','Inclui margem de perda'],['Argamassa colante',fmt(mortar)+' kg','Aproximadamente '+fmt(Math.ceil(mortar/Math.max(.01,val('bag'))))+' sacos de '+fmt(val('bag'))+' kg'],['Rejunte',fmt(grout)+' kg','Consumo informado']];break}
+}
+let names={paint:'Pintura',putty:'Massa corrida',plaster:'Reboco',masonry:'Levantamento de alvenaria',tile:'Assentamento de lajota'};
+$('reportHead').style.display='block';$('date').textContent='Data: '+new Date().toLocaleDateString('pt-BR');
+$('results').innerHTML=`<div class="metric"><span class="muted">Serviço</span><strong>${names[service.value]}</strong></div><div class="metric"><span class="muted">Área líquida</span><strong>${fmt(area)} m²</strong><span class="muted">Dimensões: ${fmt(val('length'))} × ${fmt(val('height'))} m | desconto: ${fmt(val('discount'))} m² | perda: ${fmt(val('waste'))}%</span></div>`+items.map(x=>`<div class="metric"><span>${x[0]}</span><strong>${x[1]}</strong><span class="muted">${x[2]}</span></div>`).join('');
+$('result').style.display='block';$('result').scrollIntoView({behavior:'smooth',block:'start'});
+}
+service.addEventListener('change',draw);$('calculate').addEventListener('click',calculate);$('pdf').addEventListener('click',()=>window.print());$('reset').addEventListener('click',()=>{$('result').style.display='none';window.scrollTo({top:0,behavior:'smooth'})});draw();
+</script>
+</body>
+</html>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./service-worker.js").catch(()=>{});}</script>

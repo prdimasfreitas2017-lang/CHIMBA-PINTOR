@@ -1,0 +1,11 @@
+{
+  "name": "Chimba Pintor - Calculadora Industrial",
+  "short_name": "Chimba Pintor",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f1f5fb",
+  "theme_color": "#102343",
+  "icons": [
+    {"src":"logo-chimba.jpg","sizes":"any","type":"image/jpeg"}
+  ]
+}
